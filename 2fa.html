@@ -185,13 +185,35 @@ function totpCalc(a,counter){
   return code;
 }
 /* ---- end crypto ---- */
+function secretFromField(f){
+  var c=(f||'').replace(/\s/g,'');
+  if(!/^[A-Za-z2-7]{8,}$/.test(c))return null;
+  try{b32decode(c);return c.toUpperCase();}catch(e){return null;}
+}
 function findSecret(line){
-  var cleaned=line.replace(/\s/g,'');
-  var m=cleaned.match(/[A-Za-z2-7]{16,}/g);
+  if(/----|\||\t|,|;/.test(line)){
+    var parts=line.split(/----|\||\t|,|;/);
+    for(var i=parts.length-1;i>=0;i--){
+      var s=secretFromField(parts[i]);
+      if(s)return s;
+    }
+  }
+  var t=line.trim();
+  var groups=t.split(/\s+/);
+  if(groups.length>1){
+    var g4=groups.every(function(g,i){return /^[A-Za-z2-7]+$/.test(g)&&(g.length===4||(i===groups.length-1&&g.length>=1&&g.length<4));});
+    var wholeG=t.replace(/\s/g,'');
+    if(g4&&wholeG.length>=16){
+      try{b32decode(wholeG);return wholeG.toUpperCase();}catch(e){}
+    }
+  }else if(/^[A-Za-z2-7]{16,}$/.test(t)){
+    try{b32decode(t);return t.toUpperCase();}catch(e){}
+  }
+  var m=t.match(/[A-Za-z2-7]{16,}/g);
   if(!m)return null;
   m.sort(function(a,b){return b.length-a.length;});
-  for(var i=0;i<m.length;i++){
-    try{b32decode(m[i]);return m[i].toUpperCase();}catch(e){}
+  for(var j=0;j<m.length;j++){
+    try{b32decode(m[j]);return m[j].toUpperCase();}catch(e){}
   }
   return null;
 }
