@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>小工具箱 · xin8.qd.je</title>
+<meta name="description" content="免费在线中文小工具：时间戳转换、JSON格式化、Base64、UUID、密码生成、二维码、字数统计、颜色转换。">
+<style>
+:root{
+  --bg:#f6f7fb; --card:#ffffff; --ink:#1f2430; --muted:#6b7280;
+  --line:#e5e7eb; --brand:#4f46e5; --brand2:#7c6cf0; --ok:#0a7d43; --err:#c62828;
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:-apple-system,"PingFang SC","Microsoft YaHei","Noto Sans SC",sans-serif;background:var(--bg);color:var(--ink)}
+header{background:linear-gradient(120deg,var(--brand),var(--brand2));color:#fff;padding:34px 20px 28px;text-align:center}
+header h1{margin:0 0 6px;font-size:28px;letter-spacing:1px}
+header p{margin:0;opacity:.88;font-size:14px}
+.wrap{max-width:960px;margin:0 auto;padding:18px 16px 40px}
+nav{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin:6px 0 18px}
+nav button{border:1px solid var(--line);background:var(--card);color:var(--ink);padding:8px 14px;border-radius:999px;font-size:14px;cursor:pointer;transition:.15s}
+nav button:hover{border-color:var(--brand);color:var(--brand)}
+nav button.on{background:var(--brand);border-color:var(--brand);color:#fff}
+.panel{display:none;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px}
+.panel.on{display:block}
+.panel h2{margin:0 0 4px;font-size:19px}
+.panel .desc{color:var(--muted);font-size:13px;margin:0 0 14px}
+label{display:block;font-size:13px;color:var(--muted);margin:12px 0 6px}
+textarea,input[type=text],input[type=number],input[type=datetime-local],select{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:10px;font-size:14px;font-family:inherit;background:#fff;color:var(--ink)}
+textarea{min-height:110px;resize:vertical;font-family:ui-monospace,Menlo,Consolas,monospace}
+.row{display:flex;gap:10px;flex-wrap:wrap}
+.row>*{flex:1;min-width:140px}
+.btn{display:inline-block;background:var(--brand);color:#fff;border:0;padding:10px 18px;border-radius:10px;font-size:14px;cursor:pointer;margin:12px 8px 0 0}
+.btn:hover{opacity:.92}
+.btn.ghost{background:#eef2ff;color:var(--brand)}
+.out{background:#f8fafc;border:1px dashed var(--line);border-radius:10px;padding:12px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:14px;white-space:pre-wrap;word-break:break-all;min-height:44px;margin-top:12px}
+.msg{font-size:13px;margin-top:8px}
+.msg.ok{color:var(--ok)} .msg.err{color:var(--err)}
+.big{font-size:22px;font-weight:600;font-family:ui-monospace,Menlo,Consolas,monospace}
+input[type=color]{width:64px;height:40px;border:1px solid var(--line);border-radius:8px;background:#fff;padding:2px}
+input[type=range]{width:100%}
+.chk{display:inline-flex;align-items:center;gap:5px;font-size:14px;color:var(--ink);margin:10px 12px 0 0}
+#qrbox{margin-top:14px;display:flex;justify-content:center}
+footer{text-align:center;color:var(--muted);font-size:13px;padding:0 16px 30px}
+footer a{color:var(--brand);text-decoration:none}
+</style>
+</head>
+<body>
+<header>
+  <h1>🧰 小工具箱</h1>
+  <p>免费在线中文工具 · 所有计算都在你的浏览器里完成，不上传任何数据</p>
+</header>
+<div class="wrap">
+  <nav id="tabs">
+    <button data-t="ts" class="on">⏱ 时间戳转换</button>
+    <button data-t="json">🧩 JSON 格式化</button>
+    <button data-t="b64">🔤 Base64</button>
+    <button data-t="url">🔗 URL 编解码</button>
+    <button data-t="uuid">🆔 UUID 生成</button>
+    <button data-t="pwd">🔑 密码生成</button>
+    <button data-t="count">🔢 字数统计</button>
+    <button data-t="color">🎨 颜色转换</button>
+    <button data-t="qr">📱 二维码生成</button>
+  </nav>
+
+  <section class="panel on" id="p-ts">
+    <h2>时间戳转换</h2>
+    <p class="desc">Unix 时间戳（秒 / 毫秒）与日期时间互相转换。</p>
+    <label>当前时间戳（秒，每秒刷新，点击可复制）</label>
+    <div class="out big" id="nowTs" title="点击复制">-</div>
+    <div class="row">
+      <div><label>时间戳</label><input type="text" id="tsIn" placeholder="例如 1764046800 或带毫秒"></div>
+      <div><label>单位</label><select id="tsUnit"><option value="s">秒</option><option value="ms">毫秒</option></select></div>
+    </div>
+    <button class="btn" onclick="tsToDate()">转日期</button>
+    <div class="out" id="tsOut">转换结果会显示在这里</div>
+    <label>日期时间转时间戳</label>
+    <input type="datetime-local" id="dtIn" step="1">
+    <button class="btn" onclick="dateToTs()">转时间戳</button>
+    <div class="out" id="dtOut">转换结果会显示在这里</div>
+  </section>
+
+  <section class="panel" id="p-json">
+    <h2>JSON 格式化</h2>
+    <p class="desc">格式化、压缩和校验 JSON，报错会指出大概位置。</p>
+    <textarea id="jsonIn" placeholder='{"name":"小工具","ok":true}'></textarea>
+    <button class="btn" onclick="jsonFmt(2)">格式化</button>
+    <button class="btn ghost" onclick="jsonFmt(0)">压缩</button>
+    <button class="btn ghost" onclick="copyEl('jsonIn')">复制结果</button>
+    <div class="msg" id="jsonMsg"></div>
+  </section>
+
+  <section class="panel" id="p-b64">
+    <h2>Base64 编解码</h2>
+    <p class="desc">支持中文的 Base64 编码与解码。</p>
+    <textarea id="b64In" placeholder="输入文本或 Base64 字符串"></textarea>
+    <button class="btn" onclick="b64Enc()">编码 →</button>
+    <button class="btn ghost" onclick="b64Dec()">← 解码</button>
+    <div class="msg" id="b64Msg"></div>
+    <div class="out" id="b64Out">结果会显示在这里</div>
+  </section>
+
+  <section class="panel" id="p-url">
+    <h2>URL 编解码</h2>
+    <p class="desc">encodeURIComponent / decodeURIComponent，处理链接里的中文和特殊字符。</p>
+    <textarea id="urlIn" placeholder="输入 URL 或其中的参数"></textarea>
+    <button class="btn" onclick="urlEnc()">编码 →</button>
+    <button class="btn ghost" onclick="urlDec()">← 解码</button>
+    <div class="msg" id="urlMsg"></div>
+    <div class="out" id="urlOut">结果会显示在这里</div>
+  </section>
+
+  <section class="panel" id="p-uuid">
+    <h2>UUID 生成</h2>
+    <p class="desc">随机生成 UUID v4。</p>
+    <div class="row">
+      <div><label>数量</label><input type="number" id="uuidN" value="5" min="1" max="100"></div>
+      <div><label>大小写</label><select id="uuidCase"><option value="lower">小写</option><option value="upper">大写</option></select></div>
+    </div>
+    <button class="btn" onclick="genUuid()">生成</button>
+    <button class="btn ghost" onclick="copyEl('uuidOut')">复制全部</button>
+    <div class="out" id="uuidOut">点“生成”试试</div>
+  </section>
+
+  <section class="panel" id="p-pwd">
+    <h2>随机密码生成</h2>
+    <p class="desc">本地生成强密码，不经过任何服务器。</p>
+    <label>长度：<span id="pwdLenVal">16</span></label>
+    <input type="range" id="pwdLen" min="6" max="64" value="16" oninput="document.getElementById('pwdLenVal').textContent=this.value">
+    <div>
+      <label class="chk"><input type="checkbox" id="pwdLower" checked> 小写字母</label>
+      <label class="chk"><input type="checkbox" id="pwdUpper" checked> 大写字母</label>
+      <label class="chk"><input type="checkbox" id="pwdDigit" checked> 数字</label>
+      <label class="chk"><input type="checkbox" id="pwdSym" checked> 符号</label>
+    </div>
+    <button class="btn" onclick="genPwd()">生成密码</button>
+    <button class="btn ghost" onclick="copyText(document.getElementById('pwdOut').textContent)">复制</button>
+    <div class="out big" id="pwdOut">点“生成密码”试试</div>
+  </section>
+
+  <section class="panel" id="p-count">
+    <h2>字数统计</h2>
+    <p class="desc">边输入边统计：总字符、中文字数、英文单词、行数。</p>
+    <textarea id="cntIn" placeholder="在这里输入或粘贴文本" oninput="doCount()"></textarea>
+    <div class="out" id="cntOut">总字符 0 · 不含空格 0 · 中文字 0 · 英文单词 0 · 行数 0</div>
+  </section>
+
+  <section class="panel" id="p-color">
+    <h2>颜色转换</h2>
+    <p class="desc">HEX 与 RGB 互转，点色块可以取色。</p>
+    <div class="row" style="align-items:flex-end">
+      <div><label>取色</label><input type="color" id="colorPick" value="#4f46e5" oninput="colorFromPick()"></div>
+      <div><label>HEX</label><input type="text" id="colorHex" value="#4f46e5"></div>
+      <div><label>RGB</label><input type="text" id="colorRgb" value="rgb(79, 70, 229)"></div>
+    </div>
+    <button class="btn" onclick="colorConvert()">转换</button>
+    <div class="out" id="colorOut" style="min-height:64px">预览色块会显示在这里</div>
+  </section>
+
+  <section class="panel" id="p-qr">
+    <h2>二维码生成</h2>
+    <p class="desc">把文本或链接变成二维码图片，可右键保存。</p>
+    <input type="text" id="qrIn" placeholder="输入链接或文本，例如 https://xin8.qd.je">
+    <button class="btn" onclick="genQr()">生成二维码</button>
+    <div class="msg" id="qrMsg"></div>
+    <div id="qrbox"></div>
+  </section>
+</div>
+<footer>小工具箱 · xin8.qd.je ｜ 工具仅供学习交流，数据不离开你的浏览器</footer>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script>
+var tabs=document.getElementById('tabs');
+tabs.addEventListener('click',function(e){
+  if(e.target.tagName!=='BUTTON')return;
+  var b=tabs.querySelectorAll('button');for(var i=0;i<b.length;i++)b[i].classList.remove('on');
+  e.target.classList.add('on');
+  var ps=document.querySelectorAll('.panel');for(var j=0;j<ps.length;j++)ps[j].classList.remove('on');
+  document.getElementById('p-'+e.target.getAttribute('data-t')).classList.add('on');
+});
+function copyText(t){
+  if(!t)return;
+  if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(t);}
+}
+function copyEl(id){
+  var el=document.getElementById(id);
+  copyText(el.value!==undefined&&el.tagName!=='DIV'?el.value:el.textContent);
+}
+function pad(n){return (n<10?'0':'')+n;}
+function fmtDate(d){
+  return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+' '+pad(d.getHours())+':'+pad(d.getMinutes())+':'+pad(d.getSeconds());
+}
+setInterval(function(){
+  document.getElementById('nowTs').textContent=Math.floor(Date.now()/1000);
+},1000);
+document.getElementById('nowTs').addEventListener('click',function(){copyText(this.textContent);});
+function tsToDate(){
+  var v=document.getElementById('tsIn').value.trim();
+  var u=document.getElementById('tsUnit').value;
+  var out=document.getElementById('tsOut');
+  var n=Number(v);
+  if(!v||isNaN(n)){out.textContent='请输入数字时间戳';return;}
+  var ms=u==='s'?n*1000:n;
+  var d=new Date(ms);
+  out.textContent='本地时间：'+fmtDate(d)+'\nUTC 时间：'+d.toUTCString();
+}
+function dateToTs(){
+  var v=document.getElementById('dtIn').value;
+  var out=document.getElementById('dtOut');
+  if(!v){out.textContent='请先选择日期时间';return;}
+  var ms=new Date(v).getTime();
+  out.textContent='秒：'+Math.floor(ms/1000)+'\n毫秒：'+ms;
+}
+function jsonFmt(sp){
+  var el=document.getElementById('jsonIn'),msg=document.getElementById('jsonMsg');
+  try{
+    var obj=JSON.parse(el.value);
+    el.value=sp===0?JSON.stringify(obj):JSON.stringify(obj,null,sp);
+    msg.textContent='✅ JSON 有效';msg.className='msg ok';
+  }catch(e){
+    msg.textContent='❌ '+e.message;msg.className='msg err';
+  }
+}
+function b64Enc(){
+  var v=document.getElementById('b64In').value;
+  try{document.getElementById('b64Out').textContent=btoa(unescape(encodeURIComponent(v)));setMsg('b64Msg','',1);}
+  catch(e){setMsg('b64Msg','❌ 编码失败：'+e.message,0);}
+}
+function b64Dec(){
+  var v=document.getElementById('b64In').value.trim();
+  try{document.getElementById('b64Out').textContent=decodeURIComponent(escape(atob(v)));setMsg('b64Msg','',1);}
+  catch(e){setMsg('b64Msg','❌ 解码失败：不是有效的 Base64',0);}
+}
+function urlEnc(){
+  try{document.getElementById('urlOut').textContent=encodeURIComponent(document.getElementById('urlIn').value);setMsg('urlMsg','',1);}
+  catch(e){setMsg('urlMsg','❌ '+e.message,0);}
+}
+function urlDec(){
+  try{document.getElementById('urlOut').textContent=decodeURIComponent(document.getElementById('urlIn').value.trim());setMsg('urlMsg','',1);}
+  catch(e){setMsg('urlMsg','❌ 解码失败：'+e.message,0);}
+}
+function setMsg(id,t,ok){var m=document.getElementById(id);m.textContent=t;m.className='msg '+(ok?'ok':'err');}
+function genUuid(){
+  var n=parseInt(document.getElementById('uuidN').value,10)||1;
+  n=Math.max(1,Math.min(100,n));
+  var up=document.getElementById('uuidCase').value==='upper';
+  var arr=[];
+  for(var i=0;i<n;i++){
+    var u='xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,function(c){
+      var r=Math.random()*16|0,v=c==='x'?r:(r&0x3|0x8);
+      return v.toString(16);
+    });
+    arr.push(up?u.toUpperCase():u);
+  }
+  document.getElementById('uuidOut').textContent=arr.join('\n');
+}
+function genPwd(){
+  var sets='';
+  if(document.getElementById('pwdLower').checked)sets+='abcdefghijkmnpqrstuvwxyz';
+  if(document.getElementById('pwdUpper').checked)sets+='ABCDEFGHJKLMNPQRSTUVWXYZ';
+  if(document.getElementById('pwdDigit').checked)sets+='23456789';
+  if(document.getElementById('pwdSym').checked)sets+='!@#$%^&*()-_=+[]{}';
+  var out=document.getElementById('pwdOut');
+  if(!sets){out.textContent='请至少勾选一种字符';return;}
+  var len=parseInt(document.getElementById('pwdLen').value,10)||16;
+  var buf=new Uint32Array(len);
+  if(window.crypto&&crypto.getRandomValues){crypto.getRandomValues(buf);}else{for(var i=0;i<len;i++)buf[i]=Math.random()*4294967296;}
+  var s='';
+  for(var j=0;j<len;j++)s+=sets[buf[j]%sets.length];
+  out.textContent=s;
+}
+function doCount(){
+  var v=document.getElementById('cntIn').value;
+  var total=v.length;
+  var noSpace=v.replace(/\s/g,'').length;
+  var cn=(v.match(/[\u4e00-\u9fa5]/g)||[]).length;
+  var words=(v.match(/[A-Za-z0-9]+/g)||[]).length;
+  var lines=v?v.split(/\n/).length:0;
+  document.getElementById('cntOut').textContent='总字符 '+total+' · 不含空格 '+noSpace+' · 中文字 '+cn+' · 英文单词 '+words+' · 行数 '+lines;
+}
+function colorFromPick(){
+  var hex=document.getElementById('colorPick').value;
+  document.getElementById('colorHex').value=hex;
+  colorConvert();
+}
+function colorConvert(){
+  var hex=document.getElementById('colorHex').value.trim();
+  var rgbIn=document.getElementById('colorRgb').value.trim();
+  var r,g,b,hexOut;
+  if(/^#?[0-9a-fA-F]{6}$/.test(hex)){
+    hexOut=('#'+hex.replace('#','')).toLowerCase();
+    r=parseInt(hexOut.substr(1,2),16);g=parseInt(hexOut.substr(3,2),16);b=parseInt(hexOut.substr(5,2),16);
+  }else{
+    var m=rgbIn.match(/(\d+)\D+(\d+)\D+(\d+)/);
+    if(!m){document.getElementById('colorOut').textContent='格式不对：HEX 例 #4f46e5，RGB 例 rgb(79, 70, 229)';return;}
+    r=+m[1];g=+m[2];b=+m[3];
+    hexOut='#'+((1<<24)+(r<<16)+(g<<8)+b).toString(16).slice(1);
+  }
+  document.getElementById('colorHex').value=hexOut;
+  document.getElementById('colorRgb').value='rgb('+r+', '+g+', '+b+')';
+  document.getElementById('colorPick').value=hexOut;
+  var out=document.getElementById('colorOut');
+  out.style.background=hexOut;
+  out.textContent=hexOut+' · rgb('+r+', '+g+', '+b+')';
+  out.style.color=(r*0.299+g*0.587+b*0.114)>150?'#111':'#fff';
+}
+function genQr(){
+  var v=document.getElementById('qrIn').value.trim();
+  var box=document.getElementById('qrbox');
+  box.innerHTML='';
+  if(!v){setMsg('qrMsg','请先输入内容',0);return;}
+  if(typeof QRCode==='undefined'){setMsg('qrMsg','二维码库加载失败，请检查网络后刷新',0);return;}
+  new QRCode(box,{text:v,width:200,height:200});
+  setMsg('qrMsg','',1);
+}
+genUuid();genPwd();colorConvert();
+</script>
+</body>
+</html>
