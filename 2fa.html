@@ -27,6 +27,7 @@ textarea:focus{outline:2px solid var(--brand);outline-offset:-1px}
 .item .label{font-size:13px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .item .code{font-size:30px;font-weight:700;letter-spacing:3px;font-family:ui-monospace,Menlo,Consolas,monospace;cursor:pointer;line-height:1.15}
 .item .code:hover{color:var(--brand)}
+.item .code.bad{font-size:16px;color:var(--err);letter-spacing:0}
 .ring{width:44px;height:44px;flex:none;position:relative}
 .ring svg{transform:rotate(-90deg)}
 .ring .n{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--muted)}
@@ -73,6 +74,117 @@ function b32decode(s){
   if(!out.length)throw new Error('empty');
   return new Uint8Array(out);
 }
+/* ---- pure JS SHA-1 / SHA-256 (works on plain HTTP too) ---- */
+function rotl(x,n){return (x<<n)|(x>>>(32-n));}
+function rotr(x,n){return (x>>>(n))|(x<<(32-n));}
+function padMsg(bytes){
+  var ml=bytes.length;
+  var total=Math.floor((ml+9+63)/64)*64;
+  var buf=new Uint8Array(total);
+  buf.set(bytes);buf[ml]=0x80;
+  var dv=new DataView(buf.buffer);
+  dv.setUint32(total-4,(ml*8)>>>0);
+  dv.setUint32(total-8,Math.floor(ml/536870912));
+  return buf;
+}
+function sha1(bytes){
+  var buf=padMsg(bytes);
+  var h0=0x67452301,h1=0xefcdab89,h2=0x98badcfe,h3=0x10325476,h4=0xc3d2e1f0;
+  var w=new Int32Array(80);
+  for(var b=0;b<buf.length;b+=64){
+    var dv=new DataView(buf.buffer,b,64);
+    for(var i=0;i<16;i++)w[i]=dv.getInt32(i*4);
+    for(i=16;i<80;i++)w[i]=rotl(w[i-3]^w[i-8]^w[i-14]^w[i-16],1);
+    var a=h0,bb=h1,c=h2,d=h3,e=h4;
+    for(i=0;i<80;i++){
+      var f,k;
+      if(i<20){f=(bb&c)|(~bb&d);k=0x5a827999;}
+      else if(i<40){f=bb^c^d;k=0x6ed9eba1;}
+      else if(i<60){f=(bb&c)|(bb&d)|(c&d);k=0x8f1bbcdc;}
+      else{f=bb^c^d;k=0xca62c1d6;}
+      var tmp=(rotl(a,5)+f+e+k+w[i])|0;
+      e=d;d=c;c=rotl(bb,30);bb=a;a=tmp;
+    }
+    h0=(h0+a)|0;h1=(h1+bb)|0;h2=(h2+c)|0;h3=(h3+d)|0;h4=(h4+e)|0;
+  }
+  var out=new Uint8Array(20);var odv=new DataView(out.buffer);
+  odv.setInt32(0,h0);odv.setInt32(4,h1);odv.setInt32(8,h2);odv.setInt32(12,h3);odv.setInt32(16,h4);
+  return out;
+}
+var SHA256_K=null,SHA256_H=null;
+function sha256Init(){
+  var primes=[],n=2;
+  while(primes.length<64){
+    var isP=true;
+    for(var i=2;i*i<=n;i++)if(n%i===0){isP=false;break;}
+    if(isP)primes.push(n);
+    n++;
+  }
+  function frac32(x){return Math.floor((x-Math.floor(x))*4294967296);}
+  SHA256_K=primes.map(function(p){return frac32(Math.cbrt(p));});
+  SHA256_H=primes.slice(0,8).map(function(p){return frac32(Math.sqrt(p));});
+}
+function sha256(bytes){
+  if(!SHA256_K)sha256Init();
+  var buf=padMsg(bytes);
+  var h=SHA256_H.slice();
+  var w=new Int32Array(64);
+  for(var b=0;b<buf.length;b+=64){
+    var dv=new DataView(buf.buffer,b,64);
+    for(var i=0;i<16;i++)w[i]=dv.getInt32(i*4);
+    for(i=16;i<64;i++){
+      var s0=rotr(w[i-15],7)^rotr(w[i-15],18)^(w[i-15]>>>3);
+      var s1=rotr(w[i-2],17)^rotr(w[i-2],19)^(w[i-2]>>>10);
+      w[i]=(w[i-16]+s0+w[i-7]+s1)|0;
+    }
+    var a=h[0],bb=h[1],c=h[2],d=h[3],e=h[4],f=h[5],g=h[6],hh=h[7];
+    for(i=0;i<64;i++){
+      var S1=rotr(e,6)^rotr(e,11)^rotr(e,25);
+      var ch=(e&f)^(~e&g);
+      var t1=(hh+S1+ch+SHA256_K[i]+w[i])|0;
+      var S0=rotr(a,2)^rotr(a,13)^rotr(a,22);
+      var mj=(a&bb)^(a&c)^(bb&c);
+      var t2=(S0+mj)|0;
+      hh=g;g=f;f=e;e=(d+t1)|0;d=c;c=bb;bb=a;a=(t1+t2)|0;
+    }
+    h[0]=(h[0]+a)|0;h[1]=(h[1]+bb)|0;h[2]=(h[2]+c)|0;h[3]=(h[3]+d)|0;
+    h[4]=(h[4]+e)|0;h[5]=(h[5]+f)|0;h[6]=(h[6]+g)|0;h[7]=(h[7]+hh)|0;
+  }
+  var out=new Uint8Array(32);var odv=new DataView(out.buffer);
+  for(i=0;i<8;i++)odv.setInt32(i*4,h[i]);
+  return out;
+}
+function hmac(hashFn,blockSize,key,msg){
+  var k=key;
+  if(k.length>blockSize)k=hashFn(k);
+  var inner=new Uint8Array(blockSize+msg.length);
+  var outerPad=new Uint8Array(blockSize);
+  for(var i=0;i<blockSize;i++){
+    var kb=i<k.length?k[i]:0;
+    inner[i]=kb^0x36;outerPad[i]=kb^0x5c;
+  }
+  inner.set(msg,blockSize);
+  var innerHash=hashFn(inner);
+  var outer=new Uint8Array(blockSize+innerHash.length);
+  outer.set(outerPad);outer.set(innerHash,blockSize);
+  return hashFn(outer);
+}
+function totpCalc(a,counter){
+  var keyBytes=b32decode(a.secret);
+  var msg=new Uint8Array(8);
+  var dv=new DataView(msg.buffer);
+  dv.setUint32(4,counter>>>0);dv.setUint32(0,Math.floor(counter/4294967296));
+  var sig;
+  if(a.algo==='SHA-256')sig=hmac(sha256,64,keyBytes,msg);
+  else if(a.algo==='SHA-512')throw new Error('SHA-512 需 HTTPS 环境');
+  else sig=hmac(sha1,64,keyBytes,msg);
+  var off=sig[sig.length-1]&0x0f;
+  var bin=((sig[off]&0x7f)<<24)|((sig[off+1]&0xff)<<16)|((sig[off+2]&0xff)<<8)|(sig[off+3]&0xff);
+  var code=String(bin%Math.pow(10,a.digits));
+  while(code.length<a.digits)code='0'+code;
+  return code;
+}
+/* ---- end crypto ---- */
 function findSecret(line){
   var cleaned=line.replace(/\s/g,'');
   var m=cleaned.match(/[A-Za-z2-7]{16,}/g);
@@ -96,7 +208,7 @@ function parseOtpAuth(link){
   return {label:(issuer?issuer+' · ':'')+(name||'未命名'),secret:secret,
     digits:parseInt(q.get('digits')||'6',10),
     period:parseInt(q.get('period')||'30',10),
-    algo:(q.get('algorithm')||'SHA1').replace('SHA1','SHA-1'),win:-1,code:null};
+    algo:(q.get('algorithm')||'SHA1').replace('SHA1','SHA-1'),win:-1};
 }
 function labelFor(line,secret){
   var parts=line.split(/----|[\|\t,;]/);
@@ -117,14 +229,14 @@ function parseAll(){
       continue;
     }
     var sec=findSecret(line);
-    if(sec)out.push({label:labelFor(line,sec),secret:sec,digits:6,period:30,algo:'SHA-1',win:-1,code:null});
+    if(sec)out.push({label:labelFor(line,sec),secret:sec,digits:6,period:30,algo:'SHA-1',win:-1});
     else bad++;
   }
   var old={};
   entries.forEach(function(e){old[e.secret+'|'+e.label]=e;});
   out.forEach(function(e){
     var k=e.secret+'|'+e.label;
-    if(old[k]){e.win=old[k].win;e.code=old[k].code;}
+    if(old[k])e.win=old[k].win;
   });
   entries=out;
   render();
@@ -145,26 +257,13 @@ function render(){
     var codeEl=d.querySelector('.code');
     codeEl.addEventListener('click',function(){
       var t=codeEl.textContent.replace(/\s/g,'');
-      if(navigator.clipboard&&t&&t.indexOf('-')<0)navigator.clipboard.writeText(t);
+      if(navigator.clipboard&&t&&/^\d+$/.test(t))navigator.clipboard.writeText(t);
     });
     e._codeEl=codeEl;e._arcEl=d.querySelector('.arc');e._nEl=d.querySelector('.n');
     box.appendChild(d);
   });
 }
-async function totp(a,counter){
-  var keyBytes=b32decode(a.secret);
-  var msg=new ArrayBuffer(8);
-  var dv=new DataView(msg);
-  dv.setUint32(4,counter>>>0);dv.setUint32(0,Math.floor(counter/4294967296));
-  var key=await crypto.subtle.importKey('raw',keyBytes,{name:'HMAC',hash:{name:a.algo}},false,['sign']);
-  var sig=new Uint8Array(await crypto.subtle.sign('HMAC',key,msg));
-  var off=sig[sig.length-1]&0x0f;
-  var bin=((sig[off]&0x7f)<<24)|((sig[off+1]&0xff)<<16)|((sig[off+2]&0xff)<<8)|(sig[off+3]&0xff);
-  var code=String(bin%Math.pow(10,a.digits));
-  while(code.length<a.digits)code='0'+code;
-  return code;
-}
-async function tick(){
+function tick(){
   var nowSec=Date.now()/1000;
   for(var i=0;i<entries.length;i++){
     var e=entries[i];
@@ -174,9 +273,13 @@ async function tick(){
     if(e.win!==win){
       e.win=win;
       try{
-        var c=await totp(e,win);
+        var c=totpCalc(e,win);
         e._codeEl.textContent=c.length>6?c.substr(0,Math.ceil(c.length/2))+' '+c.substr(Math.ceil(c.length/2)):c;
-      }catch(err){e._codeEl.textContent='密钥错误';}
+        e._codeEl.className='code';
+      }catch(err){
+        e._codeEl.textContent=err.message;
+        e._codeEl.className='code bad';
+      }
     }
     var frac=remain/e.period;
     e._arcEl.style.strokeDashoffset=String(119.4*(1-frac));
