@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>2FA 验证码 · xin8.qd.je</title>
-<meta name="description" content="免费在线 2FA / TOTP 验证码生成工具：支持多账号、otpauth 链接、二维码图片识别，全部在浏览器本地计算。">
+<meta name="description" content="粘贴密钥立即出码的在线 2FA / TOTP 验证码工具，支持批量、整行账号信息自动提取密钥，本地计算不保存。">
 <style>
 :root{--bg:#f6f7fb;--card:#fff;--ink:#1f2430;--muted:#6b7280;--line:#e5e7eb;--brand:#4f46e5;--brand2:#7c6cf0;--ok:#0a7d43;--err:#c62828}
 *{box-sizing:border-box}
@@ -13,29 +13,24 @@ header{background:linear-gradient(120deg,var(--brand),var(--brand2));color:#fff;
 header h1{margin:0 0 6px;font-size:26px;letter-spacing:1px}
 header p{margin:0;opacity:.88;font-size:14px}
 header a{color:#fff}
-.wrap{max-width:860px;margin:0 auto;padding:18px 16px 40px}
+.wrap{max-width:760px;margin:0 auto;padding:18px 16px 40px}
 .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px 20px;margin-bottom:16px}
-.card h2{margin:0 0 10px;font-size:17px}
-label{display:block;font-size:13px;color:var(--muted);margin:10px 0 6px}
-input[type=text],select{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:10px;font-size:14px;font-family:inherit;background:#fff;color:var(--ink)}
-.row{display:flex;gap:10px;flex-wrap:wrap}.row>*{flex:1;min-width:130px}
-.btn{display:inline-block;background:var(--brand);color:#fff;border:0;padding:10px 18px;border-radius:10px;font-size:14px;cursor:pointer;margin:12px 8px 0 0}
+label{display:block;font-size:13px;color:var(--muted);margin:0 0 8px}
+textarea{width:100%;min-height:120px;padding:12px;border:1px solid var(--line);border-radius:10px;font-size:14px;font-family:ui-monospace,Menlo,Consolas,monospace;resize:vertical}
+textarea:focus{outline:2px solid var(--brand);outline-offset:-1px}
+.hint{font-size:12px;color:var(--muted);margin-top:8px;line-height:1.7}
+.btn{display:inline-block;background:var(--brand);color:#fff;border:0;padding:9px 16px;border-radius:10px;font-size:14px;cursor:pointer;margin:12px 8px 0 0}
 .btn.ghost{background:#eef2ff;color:var(--brand)}
 .msg{font-size:13px;margin-top:8px}.msg.ok{color:var(--ok)}.msg.err{color:var(--err)}
-.warn{background:#fff8e6;border:1px solid #f0d48a;color:#7a5b00;border-radius:10px;padding:10px 14px;font-size:13px;line-height:1.6}
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px}
-.acct{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 16px;position:relative}
-.acct .name{font-size:14px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.acct .code{font-size:32px;font-weight:700;letter-spacing:3px;font-family:ui-monospace,Menlo,Consolas,monospace;margin:6px 0 4px;cursor:pointer}
-.acct .code small{font-size:13px;color:var(--muted);letter-spacing:0}
-.bar{height:5px;background:#eceef3;border-radius:99px;overflow:hidden}
-.bar i{display:block;height:100%;background:var(--brand);border-radius:99px}
-.bar i.low{background:var(--err)}
-.acct .sec{font-size:12px;color:var(--muted);margin-top:5px}
-.acct .del{position:absolute;top:8px;right:10px;border:0;background:none;color:#b6bcc8;font-size:16px;cursor:pointer}
-.acct .del:hover{color:var(--err)}
-.empty{color:var(--muted);text-align:center;padding:26px 0;font-size:14px}
-details{margin-top:10px}summary{cursor:pointer;font-size:13px;color:var(--brand)}
+.item{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 18px;margin-bottom:10px;display:flex;align-items:center;gap:16px}
+.item .info{flex:1;min-width:0}
+.item .label{font-size:13px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.item .code{font-size:30px;font-weight:700;letter-spacing:3px;font-family:ui-monospace,Menlo,Consolas,monospace;cursor:pointer;line-height:1.15}
+.item .code:hover{color:var(--brand)}
+.ring{width:44px;height:44px;flex:none;position:relative}
+.ring svg{transform:rotate(-90deg)}
+.ring .n{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--muted)}
+.empty{color:var(--muted);text-align:center;padding:22px 0;font-size:14px}
 footer{text-align:center;color:var(--muted);font-size:13px;padding:0 16px 30px}
 footer a{color:var(--brand);text-decoration:none}
 </style>
@@ -43,147 +38,117 @@ footer a{color:var(--brand);text-decoration:none}
 <body>
 <header>
   <h1>🔐 2FA 验证码</h1>
-  <p>在线 TOTP 两步验证码生成 · <a href="/">← 回小工具箱</a></p>
+  <p>粘贴密钥，立即出码 · <a href="/">← 回小工具箱</a></p>
 </header>
 <div class="wrap">
-  <div class="warn">⚠️ 密钥只保存在<b>你这台设备的浏览器本地</b>，不会上传到任何服务器，关掉页面也不会丢（清除浏览器数据会丢）。本页适合临时取码、备用和测试；重要账号请优先使用专业验证器 App，并保管好密钥原件。</div>
-
   <div class="card">
-    <h2>添加账号</h2>
-    <label>粘贴 otpauth:// 链接（可自动识别下面所有字段）</label>
-    <input type="text" id="otpLink" placeholder="otpauth://totp/...">
-    <label>或上传二维码图片识别</label>
-    <input type="file" id="qrFile" accept="image/*">
-    <div class="row">
-      <div><label>账号名称</label><input type="text" id="fName" placeholder="例如 GitHub / caosi9918"></div>
-      <div><label>发行方（可空）</label><input type="text" id="fIssuer" placeholder="例如 GitHub"></div>
-    </div>
-    <label>密钥（Base32，通常是一串大写字母和数字）</label>
-    <input type="text" id="fSecret" placeholder="例如 JBSWY3DPEHPK3PXP">
-    <details>
-      <summary>高级选项（位数 / 周期 / 算法）</summary>
-      <div class="row">
-        <div><label>位数</label><select id="fDigits"><option value="6">6 位</option><option value="7">7 位</option><option value="8">8 位</option></select></div>
-        <div><label>周期（秒）</label><select id="fPeriod"><option value="30">30</option><option value="60">60</option></select></div>
-        <div><label>算法</label><select id="fAlgo"><option value="SHA-1">SHA-1</option><option value="SHA-256">SHA-256</option><option value="SHA-512">SHA-512</option></select></div>
-      </div>
-    </details>
-    <button class="btn" onclick="addAccount()">添加</button>
-    <button class="btn ghost" onclick="clearAll()">清空全部</button>
-    <div class="msg" id="addMsg"></div>
+    <label for="keys">把密钥粘贴到这里（每行一个，可批量）</label>
+    <textarea id="keys" placeholder="JBSWY3DPEHPK3PXP
+也可以粘贴 otpauth:// 链接
+也可以整行粘贴账号信息，例如 账号----密码----密钥，自动提取密钥"></textarea>
+    <div class="hint">支持：纯 Base32 密钥 / otpauth:// 链接 / 含密钥的整行文本（自动提取）。<br>所有计算都在你的浏览器本地完成，<b>不保存、不上传</b>，刷新页面即清空。</div>
+    <button class="btn ghost" onclick="document.getElementById('qrFile').click()">📷 上传二维码图片添加</button>
+    <input type="file" id="qrFile" accept="image/*" style="display:none">
+    <button class="btn ghost" onclick="clearAll()">清空</button>
+    <div class="msg" id="msg"></div>
   </div>
-
-  <div class="grid" id="grid"></div>
-  <div class="empty" id="emptyTip">还没有账号，在上面添加第一个吧</div>
+  <div id="list"></div>
+  <div class="empty" id="emptyTip">粘贴密钥后，验证码会立刻显示在这里</div>
 </div>
-<footer>2FA 验证码 · xin8.qd.je ｜ 所有计算都在你的浏览器里完成</footer>
+<footer>2FA 验证码 · xin8.qd.je ｜ 验证码点一下即可复制</footer>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jsQR/1.4.0/jsQR.min.js"></script>
 <script>
-var LS_KEY='xin8_2fa_accounts_v1';
-var accounts=[];
-try{accounts=JSON.parse(localStorage.getItem(LS_KEY)||'[]');}catch(e){accounts=[];}
-function save(){try{localStorage.setItem(LS_KEY,JSON.stringify(accounts));}catch(e){}}
-function setMsg(t,ok){var m=document.getElementById('addMsg');m.textContent=t;m.className='msg '+(ok?'ok':'err');}
+var entries=[];
+function setMsg(t,ok){var m=document.getElementById('msg');m.textContent=t;m.className='msg '+(ok?'ok':'err');}
 function b32decode(s){
   var alphabet='ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
   s=(s||'').toUpperCase().replace(/[\s=-]/g,'');
   var bits=0,val=0,out=[];
   for(var i=0;i<s.length;i++){
     var idx=alphabet.indexOf(s[i]);
-    if(idx<0)throw new Error('密钥里有 Base32 之外的字符');
+    if(idx<0)throw new Error('bad char');
     val=(val<<5)|idx;bits+=5;
     if(bits>=8){out.push((val>>>(bits-8))&0xff);bits-=8;}
   }
-  if(!out.length)throw new Error('密钥为空');
+  if(!out.length)throw new Error('empty');
   return new Uint8Array(out);
+}
+function findSecret(line){
+  var cleaned=line.replace(/\s/g,'');
+  var m=cleaned.match(/[A-Za-z2-7]{16,}/g);
+  if(!m)return null;
+  m.sort(function(a,b){return b.length-a.length;});
+  for(var i=0;i<m.length;i++){
+    try{b32decode(m[i]);return m[i].toUpperCase();}catch(e){}
+  }
+  return null;
 }
 function parseOtpAuth(link){
   var u=new URL(link.trim());
-  if(u.protocol!=='otpauth:')throw new Error('不是 otpauth 链接');
-  if(u.hostname!=='totp')throw new Error('暂只支持 totp 类型');
-  var label=decodeURIComponent(u.pathname.replace(/^\//,''));
+  if(u.protocol!=='otpauth:'||u.hostname!=='totp')return null;
   var q=u.searchParams;
   var secret=q.get('secret');
-  if(!secret)throw new Error('链接里没有 secret');
+  if(!secret)return null;
+  var label=decodeURIComponent(u.pathname.replace(/^\//,''));
   var issuer=q.get('issuer')||'';
   var name=label;
   if(label.indexOf(':')>0){if(!issuer)issuer=label.split(':')[0];name=label.split(':').slice(1).join(':');}
-  return {name:name||'未命名',issuer:issuer,secret:secret,
+  return {label:(issuer?issuer+' · ':'')+(name||'未命名'),secret:secret,
     digits:parseInt(q.get('digits')||'6',10),
     period:parseInt(q.get('period')||'30',10),
-    algo:(q.get('algorithm')||'SHA1').replace('SHA1','SHA-1')};
+    algo:(q.get('algorithm')||'SHA1').replace('SHA1','SHA-1'),win:-1,code:null};
 }
-function fillForm(a){
-  document.getElementById('fName').value=a.name||'';
-  document.getElementById('fIssuer').value=a.issuer||'';
-  document.getElementById('fSecret').value=a.secret||'';
-  document.getElementById('fDigits').value=String(a.digits||6);
-  document.getElementById('fPeriod').value=String(a.period||30);
-  document.getElementById('fAlgo').value=a.algo||'SHA-1';
+function labelFor(line,secret){
+  var parts=line.split(/----|[\|\t,;]/);
+  var first=(parts[0]||'').trim();
+  if(first&&first.replace(/\s/g,'').toUpperCase()!==secret&&first.length<=40)return first;
+  return '密钥 ····'+secret.slice(-4);
 }
-document.getElementById('otpLink').addEventListener('change',function(){
-  if(!this.value.trim())return;
-  try{fillForm(parseOtpAuth(this.value));setMsg('✅ 已从链接识别，请点“添加”',1);}
-  catch(e){setMsg('❌ '+e.message,0);}
-});
-document.getElementById('qrFile').addEventListener('change',function(){
-  var f=this.files&&this.files[0];
-  if(!f)return;
-  var img=new Image();
-  img.onload=function(){
-    var cv=document.createElement('canvas');
-    cv.width=img.width;cv.height=img.height;
-    var ctx=cv.getContext('2d');ctx.drawImage(img,0,0);
-    var data=ctx.getImageData(0,0,cv.width,cv.height);
-    if(typeof jsQR==='undefined'){setMsg('❌ 二维码识别库加载失败，请检查网络',0);return;}
-    var res=jsQR(data.data,cv.width,cv.height);
-    if(res&&res.data&&res.data.indexOf('otpauth://')===0){
-      try{fillForm(parseOtpAuth(res.data));setMsg('✅ 已从二维码识别，请点“添加”',1);}
-      catch(e){setMsg('❌ '+e.message,0);}
-    }else{setMsg('❌ 没识别到 otpauth 二维码',0);}
-    URL.revokeObjectURL(img.src);
-  };
-  img.src=URL.createObjectURL(f);
-});
-function addAccount(){
-  var name=document.getElementById('fName').value.trim()||'未命名';
-  var issuer=document.getElementById('fIssuer').value.trim();
-  var secret=document.getElementById('fSecret').value.trim();
-  if(!secret){setMsg('❌ 请先填密钥',0);return;}
-  try{b32decode(secret);}catch(e){setMsg('❌ '+e.message,0);return;}
-  accounts.push({id:Date.now()+''+Math.floor(Math.random()*9999),name:name,issuer:issuer,secret:secret.replace(/\s/g,''),
-    digits:parseInt(document.getElementById('fDigits').value,10),
-    period:parseInt(document.getElementById('fPeriod').value,10),
-    algo:document.getElementById('fAlgo').value,code:null,win:-1});
-  save();render();setMsg('✅ 已添加',1);
-  document.getElementById('fSecret').value='';document.getElementById('otpLink').value='';
-}
-function clearAll(){
-  if(!accounts.length)return;
-  if(confirm('确定要删除全部账号吗？此操作不可恢复。')){accounts=[];save();render();}
-}
-function delAccount(id){
-  accounts=accounts.filter(function(a){return a.id!==id;});
-  save();render();
+function parseAll(){
+  var text=document.getElementById('keys').value;
+  var lines=text.split(/\n/);
+  var out=[],bad=0;
+  for(var i=0;i<lines.length;i++){
+    var line=lines[i].trim();
+    if(!line)continue;
+    if(line.indexOf('otpauth://')===0){
+      var p=parseOtpAuth(line);
+      if(p)out.push(p);else bad++;
+      continue;
+    }
+    var sec=findSecret(line);
+    if(sec)out.push({label:labelFor(line,sec),secret:sec,digits:6,period:30,algo:'SHA-1',win:-1,code:null});
+    else bad++;
+  }
+  var old={};
+  entries.forEach(function(e){old[e.secret+'|'+e.label]=e;});
+  out.forEach(function(e){
+    var k=e.secret+'|'+e.label;
+    if(old[k]){e.win=old[k].win;e.code=old[k].code;}
+  });
+  entries=out;
+  render();
+  if(bad>0)setMsg('⚠️ 有 '+bad+' 行没识别出密钥，已跳过',0);
+  else if(out.length)setMsg('✅ 已识别 '+out.length+' 个密钥',1);
+  else setMsg('',1);
 }
 function render(){
-  var g=document.getElementById('grid');
-  document.getElementById('emptyTip').style.display=accounts.length?'none':'block';
-  g.innerHTML='';
-  accounts.forEach(function(a){
-    var d=document.createElement('div');d.className='acct';
-    var title=(a.issuer?a.issuer+' · ':'')+a.name;
-    d.innerHTML='<button class="del" title="删除">✕</button><div class="name"></div><div class="code">------</div><div class="bar"><i></i></div><div class="sec"></div>';
-    d.querySelector('.name').textContent=title;
-    d.querySelector('.del').addEventListener('click',function(){delAccount(a.id);});
+  var box=document.getElementById('list');
+  document.getElementById('emptyTip').style.display=entries.length?'none':'block';
+  box.innerHTML='';
+  entries.forEach(function(e){
+    var d=document.createElement('div');d.className='item';
+    d.innerHTML='<div class="info"><div class="label"></div><div class="code" title="点击复制">------</div></div>'+
+      '<div class="ring"><svg width="44" height="44"><circle cx="22" cy="22" r="19" fill="none" stroke="#eceef3" stroke-width="4"/>'+
+      '<circle class="arc" cx="22" cy="22" r="19" fill="none" stroke="#4f46e5" stroke-width="4" stroke-linecap="round" stroke-dasharray="119.4" stroke-dashoffset="0"/></svg><div class="n"></div></div>';
+    d.querySelector('.label').textContent=e.label;
     var codeEl=d.querySelector('.code');
-    codeEl.title='点击复制';
     codeEl.addEventListener('click',function(){
       var t=codeEl.textContent.replace(/\s/g,'');
       if(navigator.clipboard&&t&&t.indexOf('-')<0)navigator.clipboard.writeText(t);
     });
-    a._codeEl=codeEl;a._barEl=d.querySelector('.bar i');a._secEl=d.querySelector('.sec');
-    g.appendChild(d);
+    e._codeEl=codeEl;e._arcEl=d.querySelector('.arc');e._nEl=d.querySelector('.n');
+    box.appendChild(d);
   });
 }
 async function totp(a,counter){
@@ -195,31 +160,60 @@ async function totp(a,counter){
   var sig=new Uint8Array(await crypto.subtle.sign('HMAC',key,msg));
   var off=sig[sig.length-1]&0x0f;
   var bin=((sig[off]&0x7f)<<24)|((sig[off+1]&0xff)<<16)|((sig[off+2]&0xff)<<8)|(sig[off+3]&0xff);
-  var mod=Math.pow(10,a.digits);
-  var code=String(bin%mod);
+  var code=String(bin%Math.pow(10,a.digits));
   while(code.length<a.digits)code='0'+code;
   return code;
 }
 async function tick(){
   var nowSec=Date.now()/1000;
-  for(var i=0;i<accounts.length;i++){
-    var a=accounts[i];
-    if(!a._codeEl)continue;
-    var win=Math.floor(nowSec/a.period);
-    var remain=a.period-(Math.floor(nowSec)%a.period);
-    if(a.win!==win){
-      a.win=win;
+  for(var i=0;i<entries.length;i++){
+    var e=entries[i];
+    if(!e._codeEl)continue;
+    var win=Math.floor(nowSec/e.period);
+    var remain=e.period-(Math.floor(nowSec)%e.period);
+    if(e.win!==win){
+      e.win=win;
       try{
-        var c=await totp(a,win);
-        a._codeEl.textContent=c.length>6?c.substr(0,c.length/2)+' '+c.substr(c.length/2):c;
-      }catch(e){a._codeEl.textContent='密钥错误';}
+        var c=await totp(e,win);
+        e._codeEl.textContent=c.length>6?c.substr(0,Math.ceil(c.length/2))+' '+c.substr(Math.ceil(c.length/2)):c;
+      }catch(err){e._codeEl.textContent='密钥错误';}
     }
-    var pct=(remain/a.period)*100;
-    a._barEl.style.width=pct+'%';
-    a._barEl.className=remain<=5?'low':'';
-    a._secEl.textContent='剩余 '+remain+' 秒 · 点验证码可复制';
+    var frac=remain/e.period;
+    e._arcEl.style.strokeDashoffset=String(119.4*(1-frac));
+    e._arcEl.style.stroke=remain<=5?'#c62828':'#4f46e5';
+    e._nEl.textContent=remain;
   }
 }
+var deb=null;
+document.getElementById('keys').addEventListener('input',function(){
+  if(deb)clearTimeout(deb);
+  deb=setTimeout(parseAll,200);
+});
+function clearAll(){
+  document.getElementById('keys').value='';
+  entries=[];render();setMsg('',1);
+}
+document.getElementById('qrFile').addEventListener('change',function(){
+  var f=this.files&&this.files[0];
+  if(!f)return;
+  var img=new Image();
+  img.onload=function(){
+    var cv=document.createElement('canvas');
+    cv.width=img.width;cv.height=img.height;
+    var ctx=cv.getContext('2d');ctx.drawImage(img,0,0);
+    var data=ctx.getImageData(0,0,cv.width,cv.height);
+    if(typeof jsQR==='undefined'){setMsg('❌ 二维码识别库加载失败，请检查网络',0);return;}
+    var res=jsQR(data.data,cv.width,cv.height);
+    if(res&&res.data){
+      var ta=document.getElementById('keys');
+      ta.value=(ta.value?ta.value.replace(/\n+$/,'')+'\n':'')+res.data+'\n';
+      parseAll();
+    }else setMsg('❌ 没识别到二维码',0);
+    URL.revokeObjectURL(img.src);
+  };
+  img.src=URL.createObjectURL(f);
+  this.value='';
+});
 render();
 tick();
 setInterval(tick,250);
