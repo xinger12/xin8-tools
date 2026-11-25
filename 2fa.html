@@ -31,6 +31,10 @@ textarea:focus{outline:2px solid var(--brand);outline-offset:-1px}
 .ring{width:44px;height:44px;flex:none;position:relative}
 .ring svg{transform:rotate(-90deg)}
 .ring .n{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--muted)}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.chip{border:1px solid var(--line);background:#f3f4ff;color:var(--brand);font-size:12px;padding:4px 10px;border-radius:999px;cursor:pointer}
+.chip:hover{background:#e6e9ff}
+.chip.done{background:var(--ok);border-color:var(--ok);color:#fff}
 .empty{color:var(--muted);text-align:center;padding:22px 0;font-size:14px}
 footer{text-align:center;color:var(--muted);font-size:13px;padding:0 16px 30px}
 footer a{color:var(--brand);text-decoration:none}
@@ -47,7 +51,7 @@ footer a{color:var(--brand);text-decoration:none}
     <textarea id="keys" placeholder="JBSWY3DPEHPK3PXP
 也可以粘贴 otpauth:// 链接
 也可以整行粘贴账号信息，例如 账号----密码----密钥，自动提取密钥"></textarea>
-    <div class="hint">支持：纯 Base32 密钥 / otpauth:// 链接 / 含密钥的整行文本（自动提取）。<br>所有计算都在你的浏览器本地完成，<b>不保存、不上传</b>，刷新页面即清空。</div>
+    <div class="hint">支持：纯 Base32 密钥 / otpauth:// 链接 / 账号----密码----2FA----RT 整行粘贴（自动拆分，四段都能一键复制）。<br>所有计算都在你的浏览器本地完成，<b>不保存、不上传</b>，刷新页面即清空。</div>
     <button class="btn ghost" onclick="document.getElementById('qrFile').click()">📷 上传二维码图片添加</button>
     <input type="file" id="qrFile" accept="image/*" style="display:none">
     <button class="btn ghost" onclick="clearAll()">清空</button>
@@ -227,7 +231,7 @@ function parseOtpAuth(link){
   var issuer=q.get('issuer')||'';
   var name=label;
   if(label.indexOf(':')>0){if(!issuer)issuer=label.split(':')[0];name=label.split(':').slice(1).join(':');}
-  return {label:(issuer?issuer+' · ':'')+(name||'未命名'),secret:secret,
+  return {label:(issuer?issuer+' · ':'')+(name||'未命名'),name:name||'',secret:secret,
     digits:parseInt(q.get('digits')||'6',10),
     period:parseInt(q.get('period')||'30',10),
     algo:(q.get('algorithm')||'SHA1').replace('SHA1','SHA-1'),win:-1};
@@ -238,6 +242,45 @@ function labelFor(line,secret){
   if(first&&first.replace(/\s/g,'').toUpperCase()!==secret&&first.length<=40)return first;
   return '密钥 ····'+secret.slice(-4);
 }
+function copyText(t,btn){
+  function done(){
+    if(btn){var old=btn.textContent;btn.textContent='已复制 ✓';btn.classList.add('done');
+      setTimeout(function(){btn.textContent=old;btn.classList.remove('done');},1200);}
+  }
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(t).then(done,function(){fallback();});
+  }else fallback();
+  function fallback(){
+    var ta=document.createElement('textarea');
+    ta.value=t;ta.style.position='fixed';ta.style.opacity='0';
+    document.body.appendChild(ta);ta.select();
+    try{document.execCommand('copy');done();}catch(e){}
+    document.body.removeChild(ta);
+  }
+}
+function parseDelimited(line){
+  var parts=line.split(/----|\||\t|,|;/).map(function(x){return x.trim();});
+  if(parts.length<3)return null;
+  var secret=null,secretIdx=-1;
+  for(var i=2;i<parts.length;i++){
+    var c=parts[i].replace(/\s/g,'');
+    if(c.length<=64){var s=secretFromField(parts[i]);if(s){secret=s;secretIdx=i;break;}}
+  }
+  if(!secret){
+    for(var j=parts.length-1;j>=2;j--){
+      var c2=parts[j].replace(/\s/g,'');
+      if(c2.length<=64){var s2=secretFromField(parts[j]);if(s2){secret=s2;secretIdx=j;break;}}
+    }
+  }
+  if(!secret)return null;
+  var rt=null;
+  if(secretIdx>=0&&secretIdx<parts.length-1){
+    var rest=parts.slice(secretIdx+1).join('----').trim();
+    if(rest)rt=rest;
+  }
+  return {label:parts[0]||('密钥 ····'+secret.slice(-4)),account:parts[0]||null,
+    password:parts[1]||null,secret:secret,rt:rt,digits:6,period:30,algo:'SHA-1',win:-1};
+}
 function parseAll(){
   var text=document.getElementById('keys').value;
   var lines=text.split(/\n/);
@@ -247,11 +290,15 @@ function parseAll(){
     if(!line)continue;
     if(line.indexOf('otpauth://')===0){
       var p=parseOtpAuth(line);
-      if(p)out.push(p);else bad++;
+      if(p){p.account=p.name||null;p.password=null;p.rt=null;out.push(p);}else bad++;
       continue;
     }
+    if(/----|\||\t|,|;/.test(line)){
+      var d=parseDelimited(line);
+      if(d){out.push(d);continue;}
+    }
     var sec=findSecret(line);
-    if(sec)out.push({label:labelFor(line,sec),secret:sec,digits:6,period:30,algo:'SHA-1',win:-1});
+    if(sec)out.push({label:labelFor(line,sec),account:null,password:null,secret:sec,rt:null,digits:6,period:30,algo:'SHA-1',win:-1});
     else bad++;
   }
   var old={};
@@ -263,7 +310,7 @@ function parseAll(){
   entries=out;
   render();
   if(bad>0)setMsg('⚠️ 有 '+bad+' 行没识别出密钥，已跳过',0);
-  else if(out.length)setMsg('✅ 已识别 '+out.length+' 个密钥',1);
+  else if(out.length)setMsg('✅ 已识别 '+out.length+' 条',1);
   else setMsg('',1);
 }
 function render(){
@@ -272,14 +319,24 @@ function render(){
   box.innerHTML='';
   entries.forEach(function(e){
     var d=document.createElement('div');d.className='item';
-    d.innerHTML='<div class="info"><div class="label"></div><div class="code" title="点击复制">------</div></div>'+
+    d.innerHTML='<div class="info"><div class="label"></div><div class="chips"></div><div class="code" title="点击复制验证码">------</div></div>'+
       '<div class="ring"><svg width="44" height="44"><circle cx="22" cy="22" r="19" fill="none" stroke="#eceef3" stroke-width="4"/>'+
       '<circle class="arc" cx="22" cy="22" r="19" fill="none" stroke="#4f46e5" stroke-width="4" stroke-linecap="round" stroke-dasharray="119.4" stroke-dashoffset="0"/></svg><div class="n"></div></div>';
     d.querySelector('.label').textContent=e.label;
+    var chips=d.querySelector('.chips');
+    function addChip(text,val){
+      if(!val)return;
+      var b=document.createElement('button');b.className='chip';b.textContent=text;
+      b.addEventListener('click',function(){copyText(val,b);});
+      chips.appendChild(b);
+    }
+    addChip('复制账号',e.account);
+    addChip('复制密码',e.password);
+    addChip('复制 RT',e.rt);
     var codeEl=d.querySelector('.code');
     codeEl.addEventListener('click',function(){
       var t=codeEl.textContent.replace(/\s/g,'');
-      if(navigator.clipboard&&t&&/^\d+$/.test(t))navigator.clipboard.writeText(t);
+      if(/^\d+$/.test(t))copyText(t,null);
     });
     e._codeEl=codeEl;e._arcEl=d.querySelector('.arc');e._nEl=d.querySelector('.n');
     box.appendChild(d);
